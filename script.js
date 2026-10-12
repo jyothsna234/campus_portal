@@ -1,186 +1,536 @@
 
+let lastAnswer = "";
+
+const pages = {
+    home: {
+        title: "Welcome to Campus Portal",
+        content: `
+            <div class="welcome-card">
+                <h2>Hello, Student! 👋</h2>
+                <p>Here is your academic overview.</p>
+            </div>
+            <div class="cards">
+                <div class="card">
+                    <h3>Overall Attendance</h3>
+                    <p class="number">85%</p>
+                </div>
+                <div class="card">
+                    <h3>Enrolled Courses</h3>
+                    <p class="number">6</p>
+                </div>
+                <div class="card">
+                    <h3>Pending Payments</h3>
+                    <p class="number">₹20,000</p>
+                </div>
+            </div>
+            <div class="section-card">
+                <h2>Upcoming Events</h2>
+                <p>Department Technical Symposium</p>
+                <p>Semester Examination Registration</p>
+                <p>Campus Coding Competition</p>
+            </div>
+        `
+    },
+
+    profile: {
+        title: "My Profile",
+        content: `
+            <div class="section-card">
+                <h2>Student Details</h2>
+                <p>Name: Demo Student</p>
+                <p>Department: Computer Science</p>
+                <p>Campus: Main Campus</p>
+                <p>Student ID: DEMO001</p>
+            </div>
+        `
+    },
+
+    academics: {
+        title: "Academics",
+        content: `
+            <div class="section-card">
+                <h2>My Courses</h2>
+                <p>Ask the assistant to view marks and attendance
+                retrieved from the sample database.</p>
+            </div>
+        `
+    },
+
+    hostel: {
+        title: "Hostel",
+        content: `
+            <div class="section-card">
+                <h2>Hostel Information</h2>
+                <p>Room: Demo Room 204</p>
+                <p>Hostel status: Allocated</p>
+                <p>For hostel assistance, contact the hostel office.</p>
+                <p>This is sample information.</p>
+            </div>
+        `
+    },
+
+    payment: {
+        title: "Payments",
+        content: `
+            <div class="section-card">
+                <h2>Fee Information</h2>
+                <p>Fee details are retrieved from the sample database.</p>
+            </div>
+        `
+    }
+};
+
 function showPage(page) {
-    const title = document.getElementById("page-title");
-    const content = document.getElementById("page-content");
+    if (!pages[page]) return;
 
-    const pages = {
-        home: {
-            title: "Welcome to Campus Portal",
-            text: "<h2>Hello, Student!</h2><p>Check your attendance, courses and upcoming events on the homepage.</p>"
-        },
-        profile: {
-            title: "My Profile",
-            text: "<div class='section-card'><h2>Student Details</h2><p>Name: Demo Student</p><p>Department: Computer Science</p><p>Campus: Main Campus</p></div>"
-        },
-        academics: {
-            title: "Academics",
-            text: "<div class='section-card'><h2>My Courses</h2><p>Database Management Systems — 88%</p><p>Design and Analysis of Algorithms — 82%</p><p>Java Programming — 91%</p></div>"
-        },
-        hostel: {
-            title: "Hostel",
-            text: "<div class='section-card'><h2>Hostel Information</h2><p>Room: Demo Room 204</p><p>For hostel assistance, contact the hostel office.</p></div>"
-        },
-        payment: {
-            title: "Payments",
-            text: "<div class='section-card'><h2>Fee Information</h2><p>Pending amount: ₹0</p><p>This is sample information, not a real payment record.</p></div>"
-        }
-    };
+    document.getElementById("page-title").textContent =
+        pages[page].title;
 
-    title.textContent = pages[page].title;
-    content.innerHTML = pages[page].text;
+    document.getElementById("page-content").innerHTML =
+        pages[page].content;
 }
 
-function readPage() {
-    if (!("speechSynthesis" in window)) {
-        alert("Speech output is not supported by this browser.");
-        return;
-    }
+function speakAnswer(answer) {
+    if (!("speechSynthesis" in window)) return;
 
     window.speechSynthesis.cancel();
 
-    const text = document.getElementById("page-title").textContent
-        + ". "
-        + document.getElementById("page-content").innerText;
-
-    const speech = new SpeechSynthesisUtterance(text);
+    const speech = new SpeechSynthesisUtterance(answer);
     speech.lang = "en-IN";
+
     window.speechSynthesis.speak(speech);
 }
 
+function stopSpeaking() {
+    if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+    }
+}
 
-async function askGemini(question) {
-    const responseBox = document.getElementById("assistant-response");
+function readPage() {
+    const title = document.getElementById("page-title").textContent;
+    const content = document.getElementById("page-content").innerText;
+    const answer = title + ". " + content;
 
-    responseBox.textContent = "Thinking...";
+    lastAnswer = answer;
+    speakAnswer(answer);
+}
 
+function showAnswer(answer, shouldSpeak = true) {
+    document.getElementById("assistant-response").textContent = answer;
+    lastAnswer = answer;
+
+    if (shouldSpeak) {
+        speakAnswer(answer);
+    }
+}
+
+async function inspectWebsite(url) {
     try {
-        const response = await fetch("/api/chat", {
+        const response = await fetch("/api/inspect", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-                message: question
-            })
+            body: JSON.stringify({ url })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || "Request failed");
+            throw new Error(data.error || "Website inspection failed");
         }
 
-        const answer = data.reply;
+        const summary =
+            `Website: ${data.title}. ` +
+            `Headings: ${(data.headings || []).join(", ") || "None found"}. ` +
+            `Links: ${(data.links || []).map(link => link.text).join(", ") || "None found"}. ` +
+            `Buttons: ${(data.buttons || []).join(", ") || "None found"}.`;
 
-const q = question.toLowerCase();
-
-if (q.includes("open") || q.includes("go to") || q.includes("take me")) {
-    if (q.includes("profile")) {
-        showPage("profile");
-    } else if (q.includes("academic") || q.includes("course")) {
-        showPage("academics");
-    } else if (q.includes("hostel")) {
-        showPage("hostel");
-    } else if (q.includes("payment") || q.includes("fee")) {
-        showPage("payment");
-    } else if (q.includes("home")) {
-        showPage("home");
+        showAnswer(summary);
+    } catch (error) {
+        console.error(error);
+        showAnswer("Sorry, I couldn't inspect that website.", false);
     }
 }
 
-        responseBox.textContent = "You asked: " + question + "\n" + answer;
+function identifyCourse(q) {
+    if (q.includes("dbms") || q.includes("database")) {
+        return "Database Management Systems";
+    }
 
-        window.speechSynthesis.cancel();
+    if (q.includes("java")) {
+        return "Java Programming";
+    }
 
-        const speech = new SpeechSynthesisUtterance(answer);
-        speech.lang = "en-IN";
-        window.speechSynthesis.speak(speech);
+    if (
+        q.includes("algorithm") ||
+        q.includes("daa")
+    ) {
+        return "Design and Analysis of Algorithms";
+    }
+
+    if (
+        q.includes("computer organization") ||
+        q.includes("coa")
+    ) {
+        return "Computer Organization";
+    }
+
+    if (q.includes("discrete")) {
+        return "Discrete Mathematics";
+    }
+
+    if (q.includes("data structures") || q.includes("data structure")) {
+        return "Data Structures";
+    }
+
+    return "";
+}
+
+async function getCourses() {
+    const response = await fetch("/api/courses");
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || "Could not load courses");
+    }
+
+    return data.courses || [];
+}
+
+async function askGemini(question) {
+    const responseBox = document.getElementById("assistant-response");
+    const q = question.toLowerCase().trim();
+
+    responseBox.textContent = "Thinking...";
+
+    try {
+        // Navigation requests
+        if (
+            q.includes("open") ||
+            q.includes("go to") ||
+            q.includes("take me to") ||
+            q.includes("show me") ||
+            q.includes("navigate to")
+        ) {
+            if (q.includes("profile")) {
+                showPage("profile");
+                showAnswer("Opening your profile.");
+                return;
+            }
+
+            if (q.includes("academic") || q.includes("course")) {
+                showPage("academics");
+                showAnswer("Opening academics.");
+                return;
+            }
+
+            if (q.includes("hostel") || q.includes("room")) {
+                showPage("hostel");
+                showAnswer("Opening hostel information.");
+                return;
+            }
+
+            if (q.includes("payment") || q.includes("fee")) {
+                showPage("payment");
+                showAnswer("Opening payments.");
+                return;
+            }
+
+            if (q.includes("home")) {
+                showPage("home");
+                showAnswer("Opening the homepage.");
+                return;
+            }
+        }
+
+        // Highest or lowest marks
+        const asksHighest =
+            q.includes("highest") ||
+            q.includes("top scoring") ||
+            q.includes("best performing") ||
+            q.includes("best marks") ||
+            q.includes("best score") ||
+            q.includes("highest grade");
+
+        const asksLowest =
+            q.includes("lowest") ||
+            q.includes("worst marks") ||
+            q.includes("worst score") ||
+            q.includes("lowest grade");
+
+        if (asksHighest || asksLowest) {
+            const courses = await getCourses();
+
+            if (courses.length === 0) {
+                showAnswer("No course records were found.");
+                return;
+            }
+
+            courses.sort((a, b) => {
+                const percentageA = Number(a.total_marks)
+                    ? Number(a.marks_obtained) / Number(a.total_marks)
+                    : 0;
+
+                const percentageB = Number(b.total_marks)
+                    ? Number(b.marks_obtained) / Number(b.total_marks)
+                    : 0;
+
+                return asksLowest
+                    ? percentageA - percentageB
+                    : percentageB - percentageA;
+            });
+
+            const course = courses[0];
+            const percentage = Number(course.total_marks)
+                ? (Number(course.marks_obtained) /
+                   Number(course.total_marks)) * 100
+                : 0;
+
+            showPage("academics");
+
+            showAnswer(
+                `${asksLowest ? "Your lowest-scoring course is" :
+                "Your highest-scoring course is"} ${course.course_name}, ` +
+                `with ${course.marks_obtained} out of ${course.total_marks} marks ` +
+                `(${percentage.toFixed(2)}%).`
+            );
+            return;
+        }
+
+        // List all courses
+        if (
+            q.includes("all courses") ||
+            q.includes("list courses") ||
+            q.includes("all subjects") ||
+            q.includes("my subjects") ||
+            q.includes("compare my subjects")
+        ) {
+            const courses = await getCourses();
+
+            const answer = courses.map(course => {
+                const percentage = Number(course.total_marks)
+                    ? (Number(course.marks_obtained) /
+                       Number(course.total_marks)) * 100
+                    : 0;
+
+                const attendance = Number(course.total_classes)
+                    ? (Number(course.classes_attended) /
+                       Number(course.total_classes)) * 100
+                    : 0;
+
+                return `${course.course_name}: ${course.marks_obtained}/` +
+                    `${course.total_marks} marks (${percentage.toFixed(2)}%), ` +
+                    `attendance ${attendance.toFixed(2)}%.`;
+            }).join("\n");
+
+            showPage("academics");
+            showAnswer(answer || "No courses were found.");
+            return;
+        }
+
+        // Individual course marks
+        if (
+            q.includes("mark") ||
+            q.includes("score") ||
+            q.includes("grade")
+        ) {
+            const course = identifyCourse(q);
+
+            if (course) {
+                const response = await fetch(
+                    "/api/marks?course=" + encodeURIComponent(course)
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Marks unavailable");
+                }
+
+                const record = data.course;
+                const percentage = Number(record.total_marks)
+                    ? (Number(record.marks_obtained) /
+                       Number(record.total_marks)) * 100
+                    : 0;
+
+                showPage("academics");
+
+                showAnswer(
+                    `Your ${record.course_name} marks are ` +
+                    `${record.marks_obtained} out of ${record.total_marks}, ` +
+                    `which is ${percentage.toFixed(2)}%.`
+                );
+                return;
+            }
+        }
+
+        // Attendance
+        if (
+            q.includes("attendance") ||
+            q.includes("classes attended") ||
+            q.includes("bunk")
+        ) {
+            const course = identifyCourse(q);
+
+            if (course) {
+                const response = await fetch(
+                    "/api/attendance?course=" + encodeURIComponent(course)
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Attendance unavailable");
+                }
+
+                showPage("academics");
+
+                showAnswer(
+                    `Your ${data.course} attendance is ` +
+                    `${data.attendancePercentage}%. You attended ` +
+                    `${data.classesAttended} out of ${data.totalClasses} classes.`
+                );
+                return;
+            }
+
+            const courses = await getCourses();
+
+            const totalAttended = courses.reduce(
+                (sum, course) => sum + Number(course.classes_attended), 0
+            );
+
+            const totalClasses = courses.reduce(
+                (sum, course) => sum + Number(course.total_classes), 0
+            );
+
+            const percentage = totalClasses
+                ? (totalAttended / totalClasses) * 100
+                : 0;
+
+            showAnswer(
+                `Your combined sample attendance is ${percentage.toFixed(2)}%, ` +
+                `based on ${totalAttended} attended classes out of ${totalClasses}.`
+            );
+            return;
+        }
+
+        // Fee information
+        if (
+            q.includes("fee") ||
+            q.includes("payment") ||
+            q.includes("paid") ||
+            q.includes("pending amount") ||
+            q.includes("owe")
+        ) {
+            const response = await fetch("/api/fees");
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Fees unavailable");
+            }
+
+            showPage("payment");
+
+            showAnswer(
+                `Your total sample fee is ₹${data.totalFee}. ` +
+                `You have paid ₹${data.amountPaid}, and ` +
+                `₹${data.pendingAmount} is pending.`
+            );
+            return;
+        }
+
+        // Hostel data is currently hard-coded, not stored in SQLite
+        if (q.includes("hostel") || q.includes("room number")) {
+            showPage("hostel");
+
+            showAnswer(
+                "Your sample hostel room is Demo Room 204, " +
+                "and your hostel status is allocated. " +
+                "These are demonstration details."
+            );
+            return;
+        }
+
+        // Let the backend and local AI handle other questions
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ message: question })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "AI request failed");
+        }
+
+        showAnswer(data.reply || "I couldn't generate an answer.");
 
     } catch (error) {
         console.error(error);
-        responseBox.textContent =
-            "Sorry, I couldn't connect to the AI assistant. Please try again.";
+
+        showAnswer(
+            "Sorry, I couldn't retrieve that information. Please try again.",
+            false
+        );
     }
 }
 
 function startListening() {
     const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-        document.getElementById("assistant-response").textContent =
-            "Voice input is not supported here. Try Chrome.";
+        showAnswer(
+            "Voice input is not supported in this browser. Try Google Chrome.",
+            false
+        );
         return;
     }
 
     const recognition = new SpeechRecognition();
+
     recognition.lang = "en-IN";
     recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
     document.getElementById("assistant-response").textContent =
         "Listening... Please speak now.";
 
-    
-recognition.onresult = function (event) {
-    const question = event.results[0][0].transcript.toLowerCase();
-    const responseBox = document.getElementById("assistant-response");
-    
-    if (question.includes("stop reading") || question.includes("stop speaking")) {
-    window.speechSynthesis.cancel();
-    responseBox.textContent = "Speech stopped.";
-    } else if (question.includes("repeat that") || question.includes("repeat")) {
-    readPage();
-    responseBox.textContent = "Repeating the current page.";
-    } else if (question.includes("profile")) {
-    showPage("profile");
-    responseBox.textContent = "Opening your profile.";
-    speakAnswer("Opening your profile.");
-    }
-    else if (question.includes("academic") || question.includes("course")) {
-        showPage("academics");
-        responseBox.textContent = "Opening academics.";
-        speakAnswer("Opening academics.");
-    } else if (question.includes("hostel")) {
-        showPage("hostel");
-        responseBox.textContent = "Opening hostel information.";
-        speakAnswer("Opening hostel information.");
-    } else if (question.includes("payment") || question.includes("fee")) {
-        showPage("payment");
-        responseBox.textContent = "Opening payments.";
-        speakAnswer("Opening payments.");
-    } else if (question.includes("home")) {
-        showPage("home");
-        responseBox.textContent = "Opening the homepage.";
-        speakAnswer("Opening the homepage.");
-    
-    } else if (
-    question.includes("read this page") ||
-    question.includes("read the page") ||
-    question.includes("read current page")
-    ) {
-    readPage();
-    responseBox.textContent = "Reading the current page.";
+    recognition.onresult = function (event) {
+        const question = event.results[0][0].transcript;
 
-    } else if (question.includes("attendance")) {
-        responseBox.textContent = "Your overall sample attendance is 85 percent.";
-        speakAnswer("Your overall sample attendance is 85 percent.");
-    } else {
+        document.getElementById("assistant-input").value = question;
         askGemini(question);
-    }
-};
-
-function speakAnswer(answer) {
-    window.speechSynthesis.cancel();
-    const speech = new SpeechSynthesisUtterance(answer);
-    speech.lang = "en-IN";
-    window.speechSynthesis.speak(speech);
-}
-
+    };
 
     recognition.onerror = function () {
-        document.getElementById("assistant-response").textContent =
-            "I couldn't hear you. Check microphone permission and try again.";
+        showAnswer(
+            "I couldn't hear you. Check microphone permission and try again.",
+            false
+        );
     };
 
     recognition.start();
 }
+
+// Typed questions use the same assistant
+document.getElementById("assistant-form").addEventListener(
+    "submit",
+    function (event) {
+        event.preventDefault();
+
+        const input = document.getElementById("assistant-input");
+        const question = input.value.trim();
+
+        if (!question) return;
+
+        input.value = "";
+        askGemini(question);
+    }
+);

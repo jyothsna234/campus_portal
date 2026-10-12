@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +13,7 @@
     <aside class="sidebar">
         <h2>Campus Portal</h2>
 
-        <nav>
+        <nav aria-label="Main navigation">
             <button onclick="showPage('home')">Home</button>
             <button onclick="showPage('profile')">My Profile</button>
             <button onclick="showPage('academics')">Academics</button>
@@ -27,10 +28,11 @@
                 <h1 id="page-title">Welcome to Campus Portal</h1>
                 <p>Your college information, all in one place.</p>
             </div>
+
             <button onclick="readPage()">🔊 Read Page</button>
         </header>
 
-        <section id="page-content">
+        <section id="page-content" aria-live="polite">
             <div class="welcome-card">
                 <h2>Hello, Student! 👋</h2>
                 <p>Here is your academic overview.</p>
@@ -55,13 +57,14 @@
 
             <div class="section-card">
                 <h2>My Courses</h2>
-                <p>Database Management Systems — 88%</p>
+
+                <p>Database Management Systems — 88% attendance</p>
                 <progress value="88" max="100"></progress>
 
-                <p>Design and Analysis of Algorithms — 82%</p>
+                <p>Design and Analysis of Algorithms — 82% attendance</p>
                 <progress value="82" max="100"></progress>
 
-                <p>Java Programming — 91%</p>
+                <p>Java Programming — 91% attendance</p>
                 <progress value="91" max="100"></progress>
             </div>
 
@@ -74,12 +77,30 @@
         </section>
     </main>
 
-    <section class="assistant">
+    <section class="assistant" aria-label="AI Campus Assistant">
         <h3>🎙 Campus Assistant</h3>
-        <p>Need help navigating the portal?</p>
-        <button onclick="startListening()">🎤 Speak</button>
-        <p id="assistant-response" aria-live="polite">
-            Try asking about your attendance.
+
+        <p>Ask about marks, attendance, courses, or navigation.</p>
+
+        <form id="assistant-form">
+            <label for="assistant-input">Your question</label>
+
+            <input
+                id="assistant-input"
+                type="text"
+                placeholder="e.g. Check my DBMS marks"
+                autocomplete="off"
+            >
+
+            <div class="assistant-actions">
+                <button type="submit">Send</button>
+                <button type="button" onclick="startListening()">🎤 Speak</button>
+                <button type="button" onclick="stopSpeaking()">⏹ Stop</button>
+            </div>
+        </form>
+
+        <p id="assistant-response" role="status" aria-live="polite">
+            Try asking: "Go to Academics."
         </p>
     </section>
 
